@@ -69,8 +69,8 @@ class _SubscriptionHookState<TParsed> extends HookState<
     Stream<QueryResult<TParsed>>, _SubscriptionHook<TParsed>> {
   late Stream<QueryResult<TParsed>> stream;
 
-  ConnectivityResult? _currentConnectivityResult;
-  StreamSubscription<ConnectivityResult>? _networkSubscription;
+  List<ConnectivityResult>? _currentConnectivityResult;
+  StreamSubscription<List<ConnectivityResult>>? _networkSubscription;
 
   void _initSubscription() {
     final client = hook.client;
@@ -88,8 +88,10 @@ class _SubscriptionHookState<TParsed> extends HookState<
   void initHook() {
     super.initHook();
     _initSubscription();
-    _networkSubscription =
-        Connectivity().onConnectivityChanged.listen(_onNetworkChange);
+
+    _networkSubscription = Connectivity().onConnectivityChanged.listen(
+          _onNetworkChange,
+        );
   }
 
   @override
@@ -107,11 +109,15 @@ class _SubscriptionHookState<TParsed> extends HookState<
     super.dispose();
   }
 
-  Future<void> _onNetworkChange(ConnectivityResult result) async {
+  Future<void> _onNetworkChange(List<ConnectivityResult> result) async {
     //if from offline to online
-    if (_currentConnectivityResult == ConnectivityResult.none &&
-        (result == ConnectivityResult.mobile ||
-            result == ConnectivityResult.wifi)) {
+    if (_currentConnectivityResult == [ConnectivityResult.none] &&
+        result.any(
+          (e) =>
+              e == ConnectivityResult.mobile ||
+              e == ConnectivityResult.wifi ||
+              e == ConnectivityResult.ethernet,
+        )) {
       _currentConnectivityResult = result;
 
       // android connectivitystate cannot be trusted
@@ -125,7 +131,7 @@ class _SubscriptionHookState<TParsed> extends HookState<
           }
           // on exception -> no real connection, set current state to none
         } on SocketException catch (_) {
-          _currentConnectivityResult = ConnectivityResult.none;
+          _currentConnectivityResult = [ConnectivityResult.none];
         }
       } else {
         _initSubscription();
